@@ -1,11 +1,11 @@
-#Importing Additional Extensions
 import tkinter as tk
 import mysql.connector
 from tkinter import *
 from PIL import Image, ImageTk
 import tkinter.ttk as ttk
+import random
 
-#Creating empty list
+# Creating empty list
 screens = {}
 
 def on_button_click():
@@ -102,17 +102,23 @@ deck_btn = tk.Button(deck_frame, text="Create Deck", bg="#6C0345", fg="#DC6B19",
 deck_btn.pack(side="bottom")
 screens["deck"] = deck_frame
 
-def search():
-    search_term = search_entry.get(1.0, END).strip()
-    cursor.execute("SELECT front, back FROM card WHERE front LIKE %s OR back LIKE %s", (f"%{search_term}%", f"%{search_term}%"))
-    results = cursor.fetchall()
-    for item in tree.get_children():
-        tree.delete(item)
-    for row in results:
-        tree.insert("", "end", values=row)
+
 
 add_question_frame = tk.Frame(root)
 add_question_frame.configure(bg="#6C0345")
+
+def search():
+    search_term = search_entry.get(1.0, END).strip()
+    cursor.execute("SELECT deck, front, back FROM card WHERE front LIKE %s OR back LIKE %s", (f"%{search_term}%", f"%{search_term}%"))
+    results = cursor.fetchall()
+    # Clear the current contents of the tree
+    for item in tree.get_children():
+        tree.delete(item)
+    # Insert new search results
+    for row in results:
+        tree.insert("", "end", values=row)
+
+
 
 # Load and resize the image
 image_path2 = "C:\\Users\\MIT\\Downloads\\house.png.png"
@@ -137,35 +143,47 @@ search_button.pack(pady=10)
 # screen 3
 
 def populate_treeview():
-    cursor.execute("SELECT deck,front, back FROM card")  
+    cursor.execute("SELECT deck, front, back FROM card")
     for row in cursor.fetchall():
-     tree.insert("", "end", values=row)
+        tree.insert("", "end", values=row)
 
+
+# Frame for Treeview
 tree_frame = tk.Frame(add_question_frame)
-tree_frame.pack(pady=10)
+tree_frame.pack(pady=10, fill='both', expand=True)
 
-tree = ttk.Treeview(tree_frame, columns=("Deck","Front", "Back"), show="headings", selectmode="browse")
+# Treeview widget
+tree = ttk.Treeview(tree_frame, columns=("Deck", "Front", "Back"), show="headings", selectmode="browse")
 
-tree.heading("Deck", text= "Deck")
-
+# Define headings
+tree.heading("Deck", text="Deck")
 tree.heading("Front", text="Front")
 tree.heading("Back", text="Back")
 
+# Configure column widths (optional, adjust as needed)
+tree.column("Deck", width=100)
+tree.column("Front", width=150)
+tree.column("Back", width=150)
+
+# Scrollbars
 vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
 hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=tree.xview)
 
-
 tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-
+# Grid setup for Treeview and scrollbars
 tree.grid(row=0, column=0, sticky="nsew")
 vsb.grid(row=0, column=1, sticky="ns")
 hsb.grid(row=1, column=0, sticky="ew")
 
-
+# Configure the frame to expand with the window
 tree_frame.grid_rowconfigure(0, weight=1)
 tree_frame.grid_columnconfigure(0, weight=1)
+
+# Populate the Treeview with data automatically
 populate_treeview()
+
+# Populate the Treev
 screens["add_question"] = add_question_frame
 
 # Screen 4
@@ -177,6 +195,7 @@ def update_deck_dropdown():
     decks = cursor.fetchall()
     deck_names = [deck[1] for deck in decks]
     deck_combobox['values'] = deck_names
+    deck_combobox2['values'] = deck_names
 
 def add_question():
     selected_deck = deck_combobox.get()
@@ -184,8 +203,14 @@ def add_question():
     deck_id = cursor.fetchone()[0]
     front_text = front_entry.get()
     back_text = back_entry.get()
-    cursor.execute("INSERT INTO card (deck_id,deck,front, back) VALUES (%s, %s, %s,%s)", (deck_id, front_text, back_text,selected_deck))
+
+    cursor.execute("INSERT INTO card (deck_id, deck, front, back) VALUES (%s, %s, %s, %s)", (deck_id, selected_deck, front_text, back_text))
     db.commit()
+
+    # Clear all entry fields after adding a card
+    deck_combobox.set('')
+    front_entry.delete(0, tk.END)
+    back_entry.delete(0, tk.END)
 
 # Load and resize the image
 image_path3 = "C:\\Users\\MIT\\Downloads\\house.png.png"
@@ -197,8 +222,11 @@ button3.place(x=10, y=10)
 
 deck_label = tk.Label(add_card_frame, text="Deck:", font=("Helvetica", 25), bg="#6C0345", fg="#DC6B19")
 deck_label.pack()
+
+# First Combobox
 deck_combobox = ttk.Combobox(add_card_frame, font=("Helvetica", 20))
 deck_combobox.pack()
+
 
 # Add labels and text boxes
 front_label = tk.Label(add_card_frame, text="Front:", font=("Helvetica", 25), bg="#6C0345", fg="#DC6B19")
@@ -211,16 +239,89 @@ back_label.pack()
 back_entry = tk.Entry(add_card_frame, font=("Helvetica", 20))
 back_entry.pack()
 
-# Add button
+# Add buttons
 add_button = tk.Button(add_card_frame, text="Add Question", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=add_question)
 add_button.pack(pady=10)
+# Second Combobox above the "View Questions" button
+deck_combobox2 = ttk.Combobox(add_card_frame, font=("Helvetica", 20))
+deck_combobox2.pack()
+
+view_questions_button = tk.Button(add_card_frame, text="View Questions", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=lambda: show_question_screen(deck_combobox2.get()))
+view_questions_button.pack(pady=10)
+
 screens["add_card"] = add_card_frame
 
 def show_add_card_screen():
     update_deck_dropdown()
     show_screen("add_card")
 
+# Screen to display questions
+question_display_frame = tk.Frame(root)
+question_display_frame.configure(bg="#6C0345")
+
+question_label = tk.Label(question_display_frame, text="", font=("Helvetica", 25), bg="#6C0345", fg="#DC6B19", wraplength=800)
+question_label.pack(pady=20)
+
+answer_label = tk.Label(question_display_frame, text="", font=("Helvetica", 25), bg="#6C0345", fg="#DC6B19", wraplength=800)
+answer_label.pack(pady=20)
+
+def show_answer():
+    global current_question
+    answer_label.config(text=current_question[2])
+
+def next_question():
+    global current_questions, current_question
+    if current_questions:
+        current_question = random.choice(current_questions)
+        question_label.config(text=current_question[1])
+        answer_label.config(text="")
+        current_questions.remove(current_question)
+        if not current_questions:
+            show_congratulations_screen()
+
+show_answer_button = tk.Button(question_display_frame, text="Show Answer", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=show_answer)
+show_answer_button.pack(pady=10)
+
+next_question_button = tk.Button(question_display_frame, text="Next Question", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=next_question)
+next_question_button.pack(pady=10)
+
+home_button = tk.Button(question_display_frame, text="Home", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=on_button_click)
+home_button.pack(pady=10)
+
+screens["question_display"] = question_display_frame
+
+def fetch_questions(deck_id):
+    global current_questions, current_question
+    cursor.execute("SELECT deck_id, front, back FROM card WHERE deck_id = %s", (deck_id,))
+    current_questions = cursor.fetchall()
+    if current_questions:
+        current_question = random.choice(current_questions)
+        question_label.config(text=current_question[1])
+        answer_label.config(text="")
+
+def show_question_screen(deck_name): 
+    cursor.execute("SELECT deck_id FROM deck WHERE deck_name = %s", (deck_name,))
+    deck_id = cursor.fetchone()[0]
+    fetch_questions(deck_id)
+    show_screen("question_display")
+
+# Congratulations Screen
+congratulations_frame = tk.Frame(root)
+congratulations_frame.configure(bg="#6C0345")
+
+congratulations_label = tk.Label(congratulations_frame, text="Congratulations! You have completed all the questions in this deck.", font=("Helvetica", 25), bg="#6C0345", fg="#DC6B19", wraplength=800)
+congratulations_label.pack(pady=20)
+
+home_button_congrats = tk.Button(congratulations_frame, text="Home", bg="#6C0345", fg="#DC6B19", font=("Helvetica", 20), command=on_button_click)
+home_button_congrats.pack(pady=10)
+
+screens["congratulations"] = congratulations_frame
+
+def show_congratulations_screen():
+    show_screen("congratulations")
+
 show_screen("home")
 
 root.geometry(f"{window_width}x{window_height}")
-root.mainloop
+root.mainloop()
+
